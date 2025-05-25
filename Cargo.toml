@@ -1,0 +1,15 @@
+[package]
+name = "pointercrate-seeding"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pointercrate-demonlist = {path = "../pointercrate/pointercrate-demonlist"}
+pointercrate-core = {path = "../pointercrate/pointercrate-core"}
+pointercrate-user = {path = "../pointercrate/pointercrate-user", features = ["legacy_accounts"]}
+dotenv = "0.15.0"
+tokio = { version = "1.45.0", features = ["full"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "postgres"]}
+rand = "0.8"
+log = "0.4.27"
+env_logger = "0.11.8"
