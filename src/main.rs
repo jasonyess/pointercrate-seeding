@@ -1,11 +1,11 @@
-use interactions::{
+use seeding::{
     record::{RecordProgressDistribution, RecordStatusDistribution},
     Pointercrate, Seeder, SeedingOptions,
 };
 use sqlx::postgres::PgPoolOptions;
 
 mod gen;
-mod interactions;
+mod seeding;
 
 #[tokio::main]
 async fn main() {
