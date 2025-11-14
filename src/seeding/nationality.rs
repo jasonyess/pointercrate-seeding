@@ -2,6 +2,8 @@ use pointercrate_demonlist::nationality::Nationality;
 use rand::seq::SliceRandom;
 use sqlx::PgConnection;
 
+use crate::error::CliError;
+
 use super::Pointercrate;
 
 impl Pointercrate {
@@ -9,9 +11,11 @@ impl Pointercrate {
         &mut self,
         nation_pool: &Vec<String>,
         connection: &mut PgConnection,
-    ) -> Nationality {
-        Nationality::by_country_code_or_name(nation_pool.choose(&mut self.rng).unwrap(), connection)
-            .await
-            .unwrap()
+    ) -> Result<Nationality, CliError> {
+        Ok(Nationality::by_country_code_or_name(
+            nation_pool.choose(&mut self.rng).unwrap(),
+            connection,
+        )
+        .await?)
     }
 }

@@ -3,7 +3,10 @@ use std::ops::Range;
 use pointercrate_demonlist::player::recompute_scores;
 use rand::rngs::ThreadRng;
 use record::{RecordProgressDistribution, RecordStatusDistribution};
+use serde::Deserialize;
 use sqlx::{pool::PoolConnection, Pool, Postgres};
+
+use crate::error::CliError;
 
 pub mod demon;
 pub mod nationality;
@@ -13,6 +16,7 @@ pub mod seeder;
 pub mod submitter;
 pub mod user;
 
+#[derive(Debug, Deserialize)]
 pub struct SeedingOptions {
     pub players: i32,
 
@@ -82,15 +86,17 @@ impl Pointercrate {
         }
     }
 
-    pub async fn connect(&self) -> PoolConnection<Postgres> {
-        self.pool.acquire().await.unwrap()
+    pub async fn connect(&self) -> Result<PoolConnection<Postgres>, CliError> {
+        Ok(self.pool.acquire().await?)
     }
 
-    pub async fn update_scores(&self) {
-        let mut connection = self.connect().await;
+    pub async fn update_scores(&self) -> Result<(), CliError> {
+        let mut connection = self.connect().await?;
 
-        recompute_scores(&mut connection).await.unwrap();
+        recompute_scores(&mut connection).await?;
 
         log::info!("Recomputed scores");
+
+        Ok(())
     }
 }

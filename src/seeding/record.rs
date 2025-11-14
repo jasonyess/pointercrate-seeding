@@ -1,8 +1,12 @@
 use pointercrate_demonlist::record::RecordStatus;
 use rand::{distributions::WeightedIndex, prelude::Distribution, rngs::ThreadRng, Rng};
+use serde::Deserialize;
+
+use crate::error::CliError;
 
 use super::Pointercrate;
 
+#[derive(Debug, Deserialize)]
 pub struct RecordStatusDistribution {
     pub approved: u8,
     pub rejected: u8,
@@ -35,6 +39,7 @@ impl RecordStatusDistribution {
     }
 }
 
+#[derive(Debug, Deserialize)]
 pub struct RecordProgressDistribution {
     pub complete: u8,
     pub incomplete: u8,
@@ -71,14 +76,14 @@ impl Pointercrate {
         submitter_pool: &Vec<i32>,
         status_distribution: &RecordStatusDistribution,
         progress_distribution: &RecordProgressDistribution,
-    ) -> i32 {
-        let mut connection = self.connect().await;
+    ) -> Result<i32, CliError> {
+        let mut connection = self.connect().await?;
 
-        let demon = self.random_demon(&demon_pool, &mut connection).await;
-        let player = self.random_player(&player_pool, &mut connection).await;
+        let demon = self.random_demon(&demon_pool, &mut connection).await?;
+        let player = self.random_player(&player_pool, &mut connection).await?;
         let submitter = self
             .random_submitter(&submitter_pool, &mut connection)
-            .await;
+            .await?;
 
         let progress = match progress_distribution.sample(&mut self.rng) {
             RecordProgressDistributionType::Complete => 100,
@@ -96,11 +101,10 @@ impl Pointercrate {
             .bind(submitter.id)
             .bind(demon.base.id)
             .fetch_one(&mut *connection)
-            .await
-            .unwrap();
+            .await?;
 
         log::info!("Registered record with ID {}", record);
 
-        record
+        Ok(record)
     }
 }

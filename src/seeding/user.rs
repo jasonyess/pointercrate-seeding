@@ -1,16 +1,17 @@
 use pointercrate_core::permission::Permission;
 use pointercrate_user::auth::{legacy::Registration, AuthenticatedUser, PasswordOrBrowser};
 
-use crate::gen::name::generate_member_name;
+use crate::{error::CliError, gen::name::generate_member_name};
 
 use super::Pointercrate;
 
 impl Pointercrate {
+    #[allow(dead_code)]
     pub async fn register_user(
         &mut self,
         permission: Option<Permission>,
-    ) -> AuthenticatedUser<PasswordOrBrowser> {
-        let mut connection = self.connect().await;
+    ) -> Result<AuthenticatedUser<PasswordOrBrowser>, CliError> {
+        let mut connection = self.connect().await?;
 
         let user = AuthenticatedUser::register(
             Registration {
@@ -19,8 +20,7 @@ impl Pointercrate {
             },
             &mut *connection,
         )
-        .await
-        .unwrap();
+        .await?;
 
         if permission.is_some_and(|p| p.bit() > 0) {
             sqlx::query(
@@ -29,12 +29,11 @@ impl Pointercrate {
             .bind(user.user().id)
             .bind(permission.unwrap().bit() as i16)
             .execute(&mut *connection)
-            .await
-            .unwrap();
+            .await?;
         }
 
         log::info!("Registered user with ID {}", &user.user().id);
 
-        user
+        Ok(user)
     }
 }

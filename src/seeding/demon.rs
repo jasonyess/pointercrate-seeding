@@ -9,7 +9,7 @@ use pointercrate_demonlist::{
 use rand::{seq::SliceRandom, Rng};
 use sqlx::{PgConnection, Row};
 
-use crate::gen::name::generate_demon_name;
+use crate::{error::CliError, gen::name::generate_demon_name};
 
 use super::Pointercrate;
 
@@ -19,11 +19,11 @@ impl Pointercrate {
         position: &i32,
         player_pool: &Vec<i32>,
         creators_per_demon: &Range<i32>,
-    ) -> i32 {
-        let mut connection = self.connect().await;
+    ) -> Result<i32, CliError> {
+        let mut connection = self.connect().await?;
 
-        let verifier = &self.random_player(&player_pool, &mut connection).await;
-        let publisher = &self.random_player(&player_pool, &mut connection).await;
+        let verifier = &self.random_player(&player_pool, &mut connection).await?;
+        let publisher = &self.random_player(&player_pool, &mut connection).await?;
 
         let demon = sqlx::query(r#"INSERT INTO demons (name, position, requirement, verifier, publisher) VALUES ($1, $2, $3, $4, $5) RETURNING id"#)
             .bind(&generate_demon_name(&mut self.rng))
@@ -32,11 +32,10 @@ impl Pointercrate {
             .bind(&verifier.base.id)
             .bind(&publisher.base.id)
             .fetch_one(&mut *connection)
-            .await
-            .unwrap()
+            .await?
             .get("id");
 
-        let demon = MinimalDemon::by_id(demon, &mut connection).await.unwrap();
+        let demon = MinimalDemon::by_id(demon, &mut connection).await?;
 
         let num_creators = self.rng.gen_range(creators_per_demon.to_owned());
 
@@ -45,13 +44,12 @@ impl Pointercrate {
                 &demon,
                 &DatabasePlayer::by_id(
                     self.random_player(&player_pool, &mut connection)
-                        .await
+                        .await?
                         .base
                         .id,
                     &mut connection,
                 )
-                .await
-                .unwrap(),
+                .await?,
                 &mut connection,
             )
             .await
@@ -64,8 +62,7 @@ impl Pointercrate {
                     Ok(())
                 }
                 Err(err) => Err(err),
-            }
-            .unwrap();
+            }?;
         }
 
         log::info!(
@@ -74,30 +71,29 @@ impl Pointercrate {
             &num_creators
         );
 
-        demon.id
+        Ok(demon.id)
     }
 
     pub async fn random_demon(
         &mut self,
         demon_pool: &Vec<i32>,
         connection: &mut PgConnection,
-    ) -> Demon {
-        Demon::by_id(
+    ) -> Result<Demon, CliError> {
+        Ok(Demon::by_id(
             demon_pool.choose(&mut self.rng).unwrap().to_owned(),
             connection,
         )
-        .await
-        .unwrap()
+        .await?)
     }
 
-    pub async fn position_offset(&self) -> i32 {
-        let mut connection = self.connect().await;
+    pub async fn position_offset(&self) -> Result<i32, CliError> {
+        let mut connection = self.connect().await?;
 
         let max: i16 = sqlx::query_scalar(r#"SELECT MAX(position) FROM demons"#)
             .fetch_one(&mut *connection)
             .await
             .unwrap_or(0);
 
-        (max + 1) as i32
+        Ok((max + 1) as i32)
     }
 }

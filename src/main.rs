@@ -1,84 +1,75 @@
-use seeding::{
-    record::{RecordProgressDistribution, RecordStatusDistribution},
-    Pointercrate, Seeder, SeedingOptions,
-};
+use std::path::PathBuf;
+
+use seeding::{Pointercrate, Seeder};
 use sqlx::postgres::PgPoolOptions;
 
+use crate::{config::ConfigFile, error::CliError};
+
+mod config;
+mod error;
 mod gen;
+mod logger;
 mod seeding;
 
-#[tokio::main]
-async fn main() {
-    // Read our .env and enable logging
-    // Most logs are displayed at the info level, so add "RUST_LOG=info" to
-    // your environment variables or .env file
-    dotenv::dotenv().unwrap();
-    env_logger::init();
+async fn execute() -> Result<(), CliError> {
+    let args: Vec<String> = std::env::args().collect();
 
-    // Pool database connections for our seeder
+    let path = PathBuf::from(args.get(1).ok_or(CliError::MissingArgument(1, "path"))?);
+    let config = ConfigFile::read(&path)?;
+
+    logger::setup_logger(&config.log_level)?;
+
     let pool = PgPoolOptions::default()
-        .max_connections(5)
-        .connect(&std::env::var("DATABASE_URL").unwrap())
-        .await
-        .unwrap();
+        .max_connections(config.database_options.max_connections)
+        .connect(&config.database_options.database_url)
+        .await?;
 
-    // Connect to our pointercrate instance (all there really is right now is the connection pool)
+    log::info!("Connected to database");
+
     let instance = Pointercrate::new(pool);
+    let mut seeder = Seeder::new(instance, config.seeding_options);
 
-    // Configure the seeding results
-    let mut seeder = Seeder::new(
-        instance,
-        SeedingOptions {
-            players: 2500,
+    log::info!("Initialized seeder");
 
-            records: 100000,
-            record_status_distribution: RecordStatusDistribution {
-                approved: 35,
-                rejected: 50, // 50% chance a record will be rejected
-                under_consideration: 10,
-                submitted: 5,
-            },
-            record_progress_distribution: RecordProgressDistribution {
-                complete: 98, // 98% chance a record will be 100%
-                incomplete: 2,
-            },
+    seeder.populate_nation_pool().await?;
 
-            demons: 400,
-            creators_per_demon: 1..5, // Each demon will have anywhere from 1 to 4 creators
+    if config.output_options.players.use_existing {
+        seeder.populate_player_pool_database().await?;
+    }
+    if config.output_options.demons.use_existing {
+        seeder.populate_demon_pool_database().await?;
+    }
+    if config.output_options.submitters.use_existing {
+        seeder.populate_submitter_pool_database().await?;
+    }
+    if config.output_options.records.use_existing {
+        seeder.populate_record_pool_database().await?;
+    }
 
-            submitters: 90000,
-        },
-    );
+    if config.output_options.players.generate_new {
+        seeder.populate_player_pool().await?;
+    }
+    if config.output_options.demons.generate_new {
+        seeder.populate_demon_pool().await?;
+    }
+    if config.output_options.submitters.generate_new {
+        seeder.populate_submitter_pool().await?;
+    }
+    if config.output_options.records.generate_new {
+        seeder.populate_record_pool().await?;
+    }
 
-    //// Nation pool is necessary for generating players
-    // Gather the nationalities which will be assigned to newly generated players, if any.
-    seeder.populate_nation_pool().await;
+    seeder.instance.update_scores().await?;
 
-    //// Player pool is necessary for generating records and demons
-    // Generate the specified amount of players, which are pooled and randomly assigned as
-    // creators to levels, or may be given list records.
-    seeder.populate_player_pool().await;
-    // Gather existing players from the database and add them to the player pool. Every other
-    // `_database` pool populating method retrieves existing items from the database
-    // seeder.populate_player_pool_database().await;
+    Ok(())
+}
 
-    //// Demon pool is necessary for generating records
-    // Generate and pool the specified quantity of demons
-    seeder.populate_demon_pool().await;
-    //seeder.populate_demon_pool_database().await;
+#[tokio::main]
+async fn main() -> Result<(), CliError> {
+    if let Err(e) = execute().await {
+        eprintln!("{}", e);
+        std::process::exit(1);
+    }
 
-    //// Submitter pool is necessary for generating records
-    // Generate and pool the specified number of submitters
-    seeder.populate_submitter_pool().await;
-    //seeder.populate_submitter_pool_database().await;
-
-    //// Record pool is necessary for NOTHING
-    // Generate and pool the specified number of records
-    // The record statuses are distributed roughly to what the `record_status_distribution` field
-    // specifies. Same goes for 100% and non-100% records with `record_progress_distribution`
-    seeder.populate_record_pool().await;
-    //seeder.populate_record_pool_database().await;
-
-    // Update the scores. Only necessary if any new records are added
-    seeder.instance.update_scores().await;
+    Ok(())
 }

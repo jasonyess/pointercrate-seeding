@@ -1,0 +1,51 @@
+{
+  "log_level": "info",
+
+  "database_options": {
+    "max_connections": 5,
+    "database_url": ""
+  },
+
+  "seeding_options": {
+    "players": 2500,
+
+    "records": 100000,
+    "record_status_distribution": {
+      "approved": 35,
+      "rejected": 50,
+      "under_consideration": 10,
+      "submitted": 5
+    },
+    "record_progress_distribution": {
+      "complete": 98,
+      "incomplete": 2
+    },
+
+    "demons": 400,
+    "creators_per_demon": {
+      "start": 1,
+      "end": 5
+    },
+
+    "submitters": 90000
+  },
+
+  "output_options": {
+    "players": {
+      "generate_new": true,
+      "use_existing": false
+    },
+    "demons": {
+      "generate_new": true,
+      "use_existing": false
+    },
+    "submitters": {
+      "generate_new": true,
+      "use_existing": false
+    },
+    "records": {
+      "generate_new": true,
+      "use_existing": false
+    }
+  }
+}
