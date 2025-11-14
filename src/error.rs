@@ -15,6 +15,10 @@ pub enum CliError {
     InvalidLogLevel(log::ParseLevelError),
     #[display("Attempted to use existing data from empty table '{}'", _0)]
     EmptyTable(&'static str),
+    #[display("Sum of values in distribution '{}' must be 100", _0)]
+    InvalidDistribution(&'static str),
+    #[display("{} cannot be greater than {}", _0, _1)]
+    InvalidProportions(&'static str, &'static str),
 
     #[display("IO error\n{}", _0)]
     IoError(io::Error),

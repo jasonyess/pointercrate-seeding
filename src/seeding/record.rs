@@ -15,10 +15,11 @@ pub struct RecordStatusDistribution {
 }
 
 impl RecordStatusDistribution {
-    pub fn validate(&self) {
+    pub fn validate(&self) -> Result<(), CliError> {
         if self.approved + self.rejected + self.under_consideration + self.submitted != 100 {
-            panic!("sum of values in RecordStatusDistribution must be 100");
+            return Err(CliError::InvalidDistribution("record_status_distribution"));
         }
+        Ok(())
     }
 
     pub fn sample(&self, rng: &mut ThreadRng) -> RecordStatus {
@@ -51,10 +52,13 @@ pub enum RecordProgressDistributionType {
 }
 
 impl RecordProgressDistribution {
-    pub fn validate(&self) {
+    pub fn validate(&self) -> Result<(), CliError> {
         if self.complete + self.incomplete != 100 {
-            panic!("sum of values in RecordProgressDistribution must be 100");
+            return Err(CliError::InvalidDistribution(
+                "record_progress_distribution",
+            ));
         }
+        Ok(())
     }
 
     pub fn sample(&self, rng: &mut ThreadRng) -> RecordProgressDistributionType {

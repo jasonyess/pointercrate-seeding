@@ -27,7 +27,7 @@ async fn execute() -> Result<(), CliError> {
     log::info!("Connected to database");
 
     let instance = Pointercrate::new(pool);
-    let mut seeder = Seeder::new(instance, config.seeding_options);
+    let mut seeder = Seeder::new(instance, config.seeding_options)?;
 
     log::info!("Initialized seeder");
 

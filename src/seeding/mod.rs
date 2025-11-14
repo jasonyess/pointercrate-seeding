@@ -31,17 +31,19 @@ pub struct SeedingOptions {
 }
 
 impl SeedingOptions {
-    pub fn validate(&self) {
+    pub fn validate(&self) -> Result<(), CliError> {
         if self.records < self.players {
-            panic!("records cannot be less than players");
+            return Err(CliError::InvalidProportions("players", "records"));
         }
 
         if self.submitters > self.records {
-            panic!("submitters cannot be greater than records");
+            return Err(CliError::InvalidProportions("submitters", "records"));
         }
 
-        self.record_status_distribution.validate();
-        self.record_progress_distribution.validate();
+        self.record_status_distribution.validate()?;
+        self.record_progress_distribution.validate()?;
+
+        Ok(())
     }
 }
 
@@ -57,10 +59,10 @@ pub struct Seeder {
 }
 
 impl Seeder {
-    pub fn new(instance: Pointercrate, options: SeedingOptions) -> Seeder {
-        options.validate();
+    pub fn new(instance: Pointercrate, options: SeedingOptions) -> Result<Seeder, CliError> {
+        options.validate()?;
 
-        Seeder {
+        Ok(Seeder {
             instance,
             options,
 
@@ -69,7 +71,7 @@ impl Seeder {
             record_pool: Vec::new(),
             submitter_pool: Vec::new(),
             nation_pool: Vec::new(),
-        }
+        })
     }
 }
 
